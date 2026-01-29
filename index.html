@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MLSIPL Validator v71 (Stable Production)</title>
+    <title>MLSIPL Validator v73 (Calculation Fixed)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -11,12 +11,12 @@
         body { background-color: #f8fafc; font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
         .fade-in { animation: fadeIn 0.3s ease-out; }
         
-        /* Table Controls - Fixed */
+        /* Table Controls */
         .table-container { overflow: auto; max-height: 600px; position: relative; }
         th { position: sticky; top: 0; background-color: #e2e8f0; z-index: 20; font-size: 11px; border-right: 1px solid #cbd5e1; user-select: none; }
         th:hover { background-color: #d1d5db; }
         
-        /* Sort & Resize Separation */
+        /* Resizable Headers */
         .th-content { display: flex; align-items: center; justify-content: space-between; padding: 12px; cursor: pointer; height: 100%; width: 100%; }
         .resizer { width: 5px; cursor: col-resize; height: 100%; position: absolute; right: 0; top: 0; bottom: 0; }
         .resizer:hover { background: #94a3b8; }
@@ -38,8 +38,8 @@
         
         <div class="bg-white border-l-8 border-indigo-600 rounded shadow-sm px-6 py-4 flex justify-between items-center mb-6">
             <div>
-                <h1 class="text-2xl font-bold text-indigo-900"><i class="fas fa-industry mr-2"></i>MLSIPL Validator <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded ml-2">v71</span></h1>
-                <p class="text-xs text-gray-500 mt-1">Sorting Fixed • Cust Code Restored • Expiry Logic • Bug Free</p>
+                <h1 class="text-2xl font-bold text-indigo-900"><i class="fas fa-calculator mr-2"></i>MLSIPL Validator <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded ml-2">v73</span></h1>
+                <p class="text-xs text-gray-500 mt-1">Calculation Logic Fixed: Damage Priority > Date Priority</p>
             </div>
             <div class="flex gap-2 items-center">
                 <div id="statusIndicator" class="mr-4 text-xs font-bold text-gray-400"><i class="fas fa-circle text-[8px]"></i> Loading...</div>
@@ -144,6 +144,7 @@
                     <table class="w-full text-left" id="mainTable">
                         <thead class="bg-gray-100 text-gray-700 font-bold uppercase text-[10px]">
                             <tr>
+                                <th class="w-10 bg-gray-50 text-center">SN#</th>
                                 <th class="w-20"><div class="th-content" onclick="sortTable(0)">Status <i class="fas fa-sort ml-1"></i></div><div class="resizer"></div></th>
                                 <th class="w-16"><div class="th-content" onclick="sortTable(1)">Cond <i class="fas fa-sort ml-1"></i></div><div class="resizer"></div></th>
                                 <th class="w-24 bg-gray-200"><div class="th-content" onclick="sortTable(2)">Plant <i class="fas fa-sort ml-1"></i></div><div class="resizer"></div></th>
@@ -277,11 +278,11 @@
 
         // --- CONFIG MANAGEMENT ---
         function loadConfig() {
-            const m = localStorage.getItem('mlsipl_master_v70');
-            const c = localStorage.getItem('mlsipl_cust_v70');
-            const r = localStorage.getItem('mlsipl_rules_v70');
-            const msg = localStorage.getItem('mlsipl_msg_v70');
-            const adv = localStorage.getItem('mlsipl_adv_v70');
+            const m = localStorage.getItem('mlsipl_master_v72');
+            const c = localStorage.getItem('mlsipl_cust_v72');
+            const r = localStorage.getItem('mlsipl_rules_v72');
+            const msg = localStorage.getItem('mlsipl_msg_v72');
+            const adv = localStorage.getItem('mlsipl_adv_v72');
 
             if(m) {
                 document.getElementById('txtMaster').value = m;
@@ -332,10 +333,10 @@
         }
 
         function saveConfig() {
-            localStorage.setItem('mlsipl_master_v70', document.getElementById('txtMaster').value);
-            localStorage.setItem('mlsipl_cust_v70', document.getElementById('txtCust').value);
-            localStorage.setItem('mlsipl_rules_v70', document.getElementById('txtRules').value);
-            localStorage.setItem('mlsipl_msg_v70', document.getElementById('txtMsg').value);
+            localStorage.setItem('mlsipl_master_v72', document.getElementById('txtMaster').value);
+            localStorage.setItem('mlsipl_cust_v72', document.getElementById('txtCust').value);
+            localStorage.setItem('mlsipl_rules_v72', document.getElementById('txtRules').value);
+            localStorage.setItem('mlsipl_msg_v72', document.getElementById('txtMsg').value);
             
             let advObj = {
                 qtyKeys: document.getElementById('txtQtyKeys').value.split(',').map(s=>s.trim().toLowerCase()),
@@ -343,7 +344,7 @@
                 nearExp: parseInt(document.getElementById('txtNearExp').value) || 6,
                 shortExp: parseInt(document.getElementById('txtShortExp').value) || 3
             };
-            localStorage.setItem('mlsipl_adv_v70', JSON.stringify(advObj));
+            localStorage.setItem('mlsipl_adv_v72', JSON.stringify(advObj));
             
             loadConfig();
             document.getElementById('configModal').classList.add('hidden');
@@ -468,8 +469,12 @@
                     let condRaw = r[cCond] ? String(r[cCond]).trim().toLowerCase() : "good";
                     let cond = "Good";
                     
-                    // Expiry Logic
-                    if(p.exp !== "-" && p.exp.length === 10) {
+                    // FIXED LOGIC: Damage Priority > Expiry Priority
+                    if(condRaw.includes('dam') || condRaw.includes('bad') || condRaw.includes('broken')) { 
+                        cond = "Damage"; 
+                        stats.dmg++; 
+                    } 
+                    else if(p.exp !== "-" && p.exp.length === 10) {
                         let expDate = new Date(p.exp);
                         if(expDate < today) { cond="Expired"; stats.exp++; }
                         else {
@@ -478,8 +483,10 @@
                             else if(diffMonths < configAdv.nearExp) { cond="Near Exp"; stats.exp++; }
                             else { stats.good++; }
                         }
-                    } else if(condRaw.includes('dam')) { cond="Damage"; stats.dmg++; }
-                    else { stats.good++; }
+                    } 
+                    else { 
+                        stats.good++; 
+                    }
 
                     let status="Variance", sysBatch="-", sysPlant="-", custCode="-", custName="-", rem=msgMap['Variance'], badge="badge-err";
 
@@ -548,8 +555,9 @@
         }
 
         function renderTable() {
-            document.getElementById('resBody').innerHTML = results.map(r => `
+            document.getElementById('resBody').innerHTML = results.map((r, i) => `
                 <tr class="hover:bg-blue-50 border-b">
+                    <td class="p-2 font-bold text-gray-500 text-center text-[10px] border-r">${i + 1}</td>
                     <td class="p-2"><span class="${r.badge}">${r.status}</span></td>
                     <td class="p-2 text-xs font-bold ${r.cond.includes('Exp')||r.cond==='Damage'?'text-red-600':''}">${r.cond}</td>
                     <td class="p-2 text-xs font-mono bg-gray-100">${r.sysPlant}</td>
@@ -586,8 +594,8 @@
 
         function exportData() {
             const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.json_to_sheet(results.map(r=>({
-                Status: r.status, Condition: r.cond, Plant: r.sysPlant,
+            const ws = XLSX.utils.json_to_sheet(results.map((r, i)=>({
+                SN: i+1, Status: r.status, Condition: r.cond, Plant: r.sysPlant,
                 Raw: r.raw, ScanCode: r.p.scanCode, SAPCode: r.p.sapCode, Desc: r.p.desc,
                 PhyBatch: r.p.batch, SysBatch: r.sysBatch, 
                 CustCode: r.custCode, CustName: r.custName, Remarks: r.rem, Mfg: r.p.mfg, Exp: r.p.exp
